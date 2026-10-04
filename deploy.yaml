@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  labels:
+    app: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: aikantic2980/gemini-mcp-server:v1
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+spec:
+  selector:
+    app: mcp-server
+  ports:
+  - port: 8000
+    targetPort: 8000
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemini-backend
+  labels:
+    app: gemini-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gemini-backend
+  template:
+    metadata:
+      labels:
+        app: gemini-backend
+    spec:
+      containers:
+      - name: backend
+        image: aikantic2980/gemini-backend:v1
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MCP_SERVER_URL
+          value: "http://mcp-server:8000/sse"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-secret
+              key: api-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gemini-backend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: gemini-backend
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemini-frontend
+  labels:
+    app: gemini-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gemini-frontend
+  template:
+    metadata:
+      labels:
+        app: gemini-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: aikantic2980/gemini-frontend:v1
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gemini-frontend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: gemini-frontend
+  ports:
+  - port: 80
+    targetPort: 80
